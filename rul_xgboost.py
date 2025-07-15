@@ -16,11 +16,12 @@ from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 from sklearn.feature_selection import VarianceThreshold
 import shap          
 
+data = 'train_FD002.txt'
 
 sns.set(style='whitegrid')
 
 # Set path to your train file (adjust as needed)
-DATA_TRAIN_PATH = "data/train_FD001.txt"
+DATA_TRAIN_PATH = f"data/{data}"
 
 # NASA C-MAPSS column structure
 sensor_cols = [f"sensor_{i}" for i in range(1, 22)]
