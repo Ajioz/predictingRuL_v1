@@ -138,6 +138,26 @@ xgb.fit(X_train, y_train)
 rf_preds = rf.predict(X_test)
 xgb_preds = xgb.predict(X_test)
 
+# --- Step: Convert to Time Units ---
+cycle_to_day_ratio = 1  # ← adjust if one cycle is 12 hours, etc.
+
+rul_days   = xgb_preds * cycle_to_day_ratio
+rul_months = rul_days / 30
+rul_years  = rul_days / 365
+
+# Combine into dataframe
+rul_summary = pd.DataFrame({
+    'True_RUL (cycles)': y_test,
+    'Predicted_RUL (cycles)': xgb_preds,
+    'RUL_Days': rul_days.round(1),
+    'RUL_Months': rul_months.round(2),
+    'RUL_Years': rul_years.round(3)
+})
+
+print("\n🕒 Human-Readable RUL Predictions:")
+print(rul_summary.head(10))
+
+
 # Evaluate
 def evaluate(y_true, y_pred):
     return {
@@ -174,33 +194,42 @@ plt.ylabel('Predicted RUL')
 plt.tight_layout()
 plt.show()
 
+# --- Plot: Predicted RUL in Days/Months ---
+plt.figure(figsize=(12, 5))
+
+plt.subplot(1, 2, 1)
+sns.histplot(rul_summary['RUL_Days'], bins=20, kde=True)
+plt.title("⏳ Predicted RUL (Days)")
+plt.xlabel("Remaining Useful Life (Days)")
+
+plt.subplot(1, 2, 2)
+sns.histplot(rul_summary['RUL_Months'], bins=20, kde=True, color='orange')
+plt.title("📅 Predicted RUL (Months)")
+plt.xlabel("Remaining Useful Life (Months)")
+
+plt.tight_layout()
+plt.show()
+
 
 # ====================================
 # 🧮 Step 6: SHAP Explanation for XGBoost
 # ====================================
 print("\n🔍  SHAP Explanations for XGBoost")
 
-# 6‑1 ▸ Build a SHAP explainer on the training set
-explainer = shap.TreeExplainer(xgb)
-shap_values = explainer.shap_values(X_train)
+# • Use the native booster for robustness
+explainer = shap.TreeExplainer(xgb.get_booster())
 
-# 6‑2 ▸ Global feature‑importance summary (beeswarm)
-plt.figure(figsize=(12, 6))
-shap.summary_plot(shap_values, X_train, plot_type="bar", show=False)   # bar chart
-plt.title("XGBoost – Top Features (SHAP Importance)")
-plt.tight_layout()
-plt.show()
+# • Get an Explanation object (shap_values + base value) for the training set
+shap_values = explainer(X_train)        # <- new API, no .shap_values()
 
+# --- 6‑1: Global feature importance (bar plot) ---
+shap.plots.bar(shap_values, max_display=10)
 
+# --- 6‑2: Beeswarm for distribution & direction ---
+shap.plots.beeswarm(shap_values, max_display=10)
 
-# 6‑3 ▸ Detailed beeswarm (density) plot
-shap.summary_plot(shap_values, X_train, show=True)   # opens interactive in notebooks
-
-# 6‑4 ▸ Optional: Explain a single prediction
-idx = 0                                               # first test sample
-shap.force_plot(
-    explainer.expected_value,
-    explainer.shap_values(X_test.iloc[idx]),
-    X_test.iloc[idx],
-    matplotlib=True
-)
+# --- 6‑3: Force plot for one prediction ---
+idx = 0                                 # first test sample
+sample = X_test.iloc[[idx]]             # keep as DataFrame (2‑D)
+sample_sv = explainer(sample)           # returns an Explanation
+shap.plots.force(sample_sv)             # works inline in notebooks
