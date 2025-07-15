@@ -3,6 +3,7 @@
 # ====================================
 import os
 from pathlib import Path
+from datetime import datetime
 
 import pandas as pd
 import numpy as np
@@ -153,7 +154,7 @@ rul_summary = pd.DataFrame({
     'RUL_Months': rul_months.round(2),
     'RUL_Years': rul_years.round(3)
 })
-
+rul_summary['Status'] = ['⚠️ FAILED' if day < 1 else '🟢 OK' for day in rul_summary['RUL_Days']]
 print("\n🕒 Human-Readable RUL Predictions:")
 print(rul_summary.head(10))
 
@@ -171,6 +172,30 @@ xgb_results = evaluate(y_test, xgb_preds)
 
 print("\n📊 Random Forest Results:", rf_results)
 print("📊 XGBoost Results:", xgb_results)
+
+# --- Save report ---
+report_lines = []
+report_lines.append("Remaining Useful Life (RUL) Prediction Summary")
+report_lines.append("=" * 50)
+report_lines.append(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+report_lines.append("")
+report_lines.append("Top 10 RUL Predictions:")
+report_lines.append("-" * 50)
+for idx, row in rul_summary.head(10).iterrows():
+    line = (f"Unit #{idx:<3} | True RUL: {int(row['True_RUL (cycles)']):<3} cycles | "
+            f"Predicted: {row['Predicted_RUL (cycles)']:.1f} cycles | "
+            f"Days Left: {row['RUL_Days']:.1f} | Months: {row['RUL_Months']:.2f} | "
+            f"Years: {row['RUL_Years']:.3f} | Status: {row['Status']}")
+    report_lines.append(line)
+
+report_lines.append("\nModel Performance:")
+report_lines.append("-" * 50)
+report_lines.append(f"Random Forest → RMSE: {rf_results['RMSE']:.3f}, MAE: {rf_results['MAE']:.3f}, R²: {rf_results['R²']:.3f}")
+report_lines.append(f"XGBoost       → RMSE: {xgb_results['RMSE']:.3f}, MAE: {xgb_results['MAE']:.3f}, R²: {xgb_results['R²']:.3f}")
+
+with open("data/summary_rul_report.txt", "w", encoding="utf-8") as f:
+    for line in report_lines:
+        f.write(line + "\n")
 
 # ====================================
 # 📈 Step 5: Plot Predictions
