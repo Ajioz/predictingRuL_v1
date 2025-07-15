@@ -193,7 +193,7 @@ report_lines.append("-" * 50)
 report_lines.append(f"Random Forest → RMSE: {rf_results['RMSE']:.3f}, MAE: {rf_results['MAE']:.3f}, R²: {rf_results['R²']:.3f}")
 report_lines.append(f"XGBoost       → RMSE: {xgb_results['RMSE']:.3f}, MAE: {xgb_results['MAE']:.3f}, R²: {xgb_results['R²']:.3f}")
 
-with open("data/summary_rul_report.txt", "w", encoding="utf-8") as f:
+with open("report/summary_rul_report.txt", "w", encoding="utf-8") as f:
     for line in report_lines:
         f.write(line + "\n")
 
