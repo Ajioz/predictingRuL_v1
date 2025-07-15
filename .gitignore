@@ -150,7 +150,3 @@ cython_debug/
 
 secret/
 .env/
-
-# large folder
-data/
-data/bearing_data
