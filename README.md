@@ -33,8 +33,8 @@ Specifically, the `FD001` training dataset (`train_FD001.txt`) is used for this 
 
 1.  **Clone the repository:**
     ```bash
-    git clone <your-repo-url>
-    cd <your-repo-name>
+    git clone 'https://github.com/Ajioz/predictingRuL_v1'
+    cd `predictingRuL_v1`
     ```
 
 2.  **Create a virtual environment (recommended):**
