@@ -2,6 +2,7 @@
 # 📦 Step 1: Imports
 # ====================================
 import os
+import joblib
 from pathlib import Path
 from datetime import datetime
 
@@ -240,3 +241,15 @@ idx = 0
 sample = X_test.iloc[[idx]]
 sample_sv = explainer(sample)
 shap.plots.force(sample_sv)
+
+# Ensure directory exists
+os.makedirs("models", exist_ok=True)
+
+# Save trained models
+joblib.dump(xgb, "models/xgb_model.pkl")
+joblib.dump(rf, "models/rf_model.pkl")
+
+# Save feature column list
+joblib.dump(final_feature_cols, "models/feature_columns.pkl")
+
+print("✅ Models and feature columns saved to 'models/' directory.")
