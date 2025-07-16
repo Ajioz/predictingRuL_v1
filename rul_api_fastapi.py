@@ -1,6 +1,9 @@
 # ======================================
 # 🧠 RUL Prediction + Training Switcher API
 # ======================================
+import logging
+import os
+from typing import List, Optional
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from pydantic import BaseModel
 from typing import Optional, List
@@ -15,6 +18,7 @@ from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 from sklearn.feature_selection import VarianceThreshold
 from fastapi.middleware.cors import CORSMiddleware
 import logging
+from pydantic import field_validator
 
 app = FastAPI(title="RUL Dynamic Training + Prediction API")
 
@@ -30,8 +34,10 @@ app.add_middleware(
 MODELS_DIR = "models"
 os.makedirs(MODELS_DIR, exist_ok=True)
 
+REPORT_DIR = "reports"
+os.makedirs(REPORT_DIR, exist_ok=True)
 # Setup logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
+logging.basicConfig(filename=f'{REPORT_DIR}/api.log', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # ========== 📥 Input Schema ==========
 class SensorInput(BaseModel):
@@ -40,6 +46,14 @@ class SensorInput(BaseModel):
 
 class BatchInput(BaseModel):
     batch: List[SensorInput]
+
+    @field_validator('batch')
+    def check_batch_size(cls, v):
+        if len(v) > 100:
+            raise ValueError("Batch size exceeds maximum limit of 100.")
+        return v
+
+
 
 # ========== 🔧 Helper Functions ==========
 def compute_rul(df):
@@ -53,8 +67,9 @@ def select_features(df, sensor_cols):
     selector.fit(df[sensor_cols])
     flat_mask = selector.get_support()
     filtered = list(np.array(sensor_cols)[flat_mask])
-    corr = df[filtered + ['RUL']].corr()['RUL'].drop('RUL')
-    strong = corr[abs(corr) >= 0.01].index.tolist()
+    corr_matrix = df[filtered + ['RUL']].corr()
+    corr = corr_matrix['RUL'].drop('RUL')
+    strong = corr[abs(corr) >= 0.05].index.tolist()
     return [col for col in filtered if col in strong]
 
 def train_models(df):
@@ -76,6 +91,9 @@ def train_models(df):
     joblib.dump(xgb, f"{MODELS_DIR}/xgb_model.pkl")
     joblib.dump(final_features, f"{MODELS_DIR}/feature_columns.pkl")
 
+    with open(f"{REPORT_DIR}/model_info.txt", "w") as f:
+        f.write(f"Trained Features: {final_features}")
+
     logging.info("✅ Models and features saved.")
     return final_features
 
@@ -86,7 +104,7 @@ def upload_train_file(file: UploadFile = File(...)):
         df = pd.read_csv(file.file, sep="\s+", header=None)
         df = compute_rul(df)
         train_models(df)
-        return {"message": f"✅ Model trained and updated from file: {file.filename}"}
+        return {"message": f"✅ Model trained and updated from file: {file.filename}"}, 200
     except Exception as e:
         logging.error(f"Training failed: {str(e)}")
         raise HTTPException(status_code=400, detail=f"Training failed: {str(e)}")
@@ -102,7 +120,7 @@ def predict_rul(input_data: SensorInput):
         input_df = pd.DataFrame([input_data.features])[features]
         pred = model.predict(input_df)[0]
         days = pred
-        return {
+        result = {
             "rul_cycles": round(pred, 2),
             "rul_days": round(days, 2),
             "rul_months": round(days / 30, 2),
@@ -110,6 +128,12 @@ def predict_rul(input_data: SensorInput):
             "status": "☠️ FAILED" if days < 1 else "⚠️ DANGER" if days <= 90 else "🟢 OK",
             "model": model_type.upper()
         }
+        logging.info(f"✅ Prediction : {result}")
+        return result, 200
+
+
+
+
     except Exception as e:
         logging.error(f"Prediction failed: {str(e)}")
         raise HTTPException(status_code=400, detail=f"Prediction failed: {str(e)}")
@@ -121,7 +145,7 @@ def batch_predict(batch_input: BatchInput):
         results = []
         for item in batch_input.batch:
             res = predict_rul(item)
-            results.append(res)
+            results.append(res[0])
         return {"predictions": results}
     except Exception as e:
         logging.error(f"Batch prediction failed: {str(e)}")
