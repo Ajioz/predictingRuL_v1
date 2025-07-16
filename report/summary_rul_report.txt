@@ -1,21 +1,21 @@
 Remaining Useful Life (RUL) Prediction Summary
 ==================================================
-Generated: 2025-07-15 17:11:13
+Generated: 2025-07-16 11:09:09
 
 Top 10 RUL Predictions:
 --------------------------------------------------
-Unit #30  | True RUL: 0   cycles | Predicted: 0.0 cycles | Days Left: 0.0 | Months: 0.00 | Years: 0.000 | Status: ⚠️ FAILED
-Unit #181 | True RUL: 0   cycles | Predicted: 0.0 cycles | Days Left: 0.0 | Months: 0.00 | Years: 0.000 | Status: ⚠️ FAILED
-Unit #223 | True RUL: 0   cycles | Predicted: 0.0 cycles | Days Left: 0.0 | Months: 0.00 | Years: 0.000 | Status: ⚠️ FAILED
-Unit #185 | True RUL: 0   cycles | Predicted: 0.0 cycles | Days Left: 0.0 | Months: 0.00 | Years: 0.000 | Status: ⚠️ FAILED
-Unit #211 | True RUL: 0   cycles | Predicted: 0.0 cycles | Days Left: 0.0 | Months: 0.00 | Years: 0.000 | Status: ⚠️ FAILED
-Unit #258 | True RUL: 0   cycles | Predicted: 0.0 cycles | Days Left: 0.0 | Months: 0.00 | Years: 0.000 | Status: ⚠️ FAILED
-Unit #173 | True RUL: 0   cycles | Predicted: 0.0 cycles | Days Left: 0.0 | Months: 0.00 | Years: 0.000 | Status: ⚠️ FAILED
-Unit #142 | True RUL: 0   cycles | Predicted: 0.0 cycles | Days Left: 0.0 | Months: 0.00 | Years: 0.000 | Status: ⚠️ FAILED
-Unit #9   | True RUL: 0   cycles | Predicted: 0.0 cycles | Days Left: 0.0 | Months: 0.00 | Years: 0.000 | Status: ⚠️ FAILED
-Unit #177 | True RUL: 0   cycles | Predicted: 0.0 cycles | Days Left: 0.0 | Months: 0.00 | Years: 0.000 | Status: ⚠️ FAILED
+Index 49203 | True RUL: 191 | Predicted: 143.6 | Days: 143.6 | Months: 4.79 | Years: 0.394 | Status: 🟢 OK
+Index 16451 | True RUL: 250 | Predicted: 133.6 | Days: 133.6 | Months: 4.45 | Years: 0.366 | Status: 🟢 OK
+Index 25865 | True RUL: 49  | Predicted: 51.0 | Days: 51.0 | Months: 1.70 | Years: 0.140 | Status: ⚠️ DANGER
+Index 34173 | True RUL: 25  | Predicted: 42.2 | Days: 42.2 | Months: 1.41 | Years: 0.116 | Status: ⚠️ DANGER
+Index 49742 | True RUL: 108 | Predicted: 108.8 | Days: 108.8 | Months: 3.63 | Years: 0.298 | Status: 🟢 OK
+Index 7892 | True RUL: 97  | Predicted: 56.7 | Days: 56.7 | Months: 1.89 | Years: 0.155 | Status: ⚠️ DANGER
+Index 30891 | True RUL: 95  | Predicted: 73.9 | Days: 73.9 | Months: 2.46 | Years: 0.203 | Status: ⚠️ DANGER
+Index 18769 | True RUL: 2   | Predicted: 7.3 | Days: 7.3 | Months: 0.24 | Years: 0.020 | Status: ⚠️ DANGER
+Index 40689 | True RUL: 115 | Predicted: 141.3 | Days: 141.3 | Months: 4.71 | Years: 0.387 | Status: 🟢 OK
+Index 48460 | True RUL: 40  | Predicted: 30.5 | Days: 30.5 | Months: 1.02 | Years: 0.083 | Status: ⚠️ DANGER
 
 Model Performance:
 --------------------------------------------------
-Random Forest → RMSE: 0.000, MAE: 0.000, R²: 1.000
-XGBoost       → RMSE: 0.000, MAE: 0.000, R²: 1.000
+Random Forest → RMSE: 44.513, MAE: 32.823, R²: 0.578
+XGBoost       → RMSE: 44.707, MAE: 32.926, R²: 0.574
