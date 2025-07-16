@@ -1,16 +1,13 @@
 # ======================================
 # 🧠 RUL Prediction + Training Switcher API
 # ======================================
-import logging
 import os
 from typing import List, Optional
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from pydantic import BaseModel
-from typing import Optional, List
 import pandas as pd
 import numpy as np
 import joblib
-import os
 from xgboost import XGBRegressor
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import train_test_split
@@ -61,6 +58,7 @@ def compute_rul(df):
     df['RUL'] = df.groupby("unit")["time"].transform("max") - df["time"]
     return df
 
+
 def select_features(df, sensor_cols):
     var_thresh = 1e-6
     selector = VarianceThreshold(threshold=var_thresh)
@@ -71,6 +69,7 @@ def select_features(df, sensor_cols):
     corr = corr_matrix['RUL'].drop('RUL')
     strong = corr[abs(corr) >= 0.05].index.tolist()
     return [col for col in filtered if col in strong]
+
 
 def train_models(df):
     op_cols = [col for col in df.columns if col.startswith("op_setting")]
@@ -97,6 +96,7 @@ def train_models(df):
     logging.info("✅ Models and features saved.")
     return final_features
 
+
 # ========== 🔁 Upload New Training Data ==========
 @app.post("/upload")
 def upload_train_file(file: UploadFile = File(...)):
@@ -108,6 +108,7 @@ def upload_train_file(file: UploadFile = File(...)):
     except Exception as e:
         logging.error(f"Training failed: {str(e)}")
         raise HTTPException(status_code=400, detail=f"Training failed: {str(e)}")
+
 
 # ========== 🔍 Predict ==========
 @app.post("/predict")
@@ -132,11 +133,10 @@ def predict_rul(input_data: SensorInput):
         return result, 200
 
 
-
-
     except Exception as e:
         logging.error(f"Prediction failed: {str(e)}")
         raise HTTPException(status_code=400, detail=f"Prediction failed: {str(e)}")
+
 
 # ========== 📦 Batch Prediction ==========
 @app.post("/predict/batch")
@@ -151,6 +151,7 @@ def batch_predict(batch_input: BatchInput):
         logging.error(f"Batch prediction failed: {str(e)}")
         raise HTTPException(status_code=400, detail=f"Batch prediction failed: {str(e)}")
 
+
 # ========== 📊 Info Route ==========
 @app.get("/info")
 def model_info():
@@ -163,6 +164,7 @@ def model_info():
         }
     except:
         raise HTTPException(status_code=404, detail="No trained model found.")
+
 
 # ========== 🐳 Docker Healthcheck Route ==========
 @app.get("/")
