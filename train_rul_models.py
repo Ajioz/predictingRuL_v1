@@ -1,4 +1,3 @@
-import os
 import joblib
 import json
 from pathlib import Path
@@ -7,15 +6,43 @@ from datetime import datetime
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-import seaborn as sns
+import shap
+
 from sklearn.ensemble import RandomForestRegressor
 from xgboost import XGBRegressor
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 from sklearn.feature_selection import VarianceThreshold
-import shap
+import seaborn as sns
 
 sns.set(style='whitegrid')
+
+def infer_column_schema(df: pd.DataFrame):
+    """
+    Infers the number of operational setting columns and sensor columns
+    based on heuristic patterns:
+    - First 2 columns: unit and time
+    - Next N columns with relatively low variance => op-settings
+    - Remaining columns => sensors
+    """
+    fixed_cols = ["unit", "time"]
+    data = df.iloc[:, 2:]
+
+    variances = data.var()
+    threshold = 1e2
+
+    # Assume op-settings are contiguous and start from the first column after "time"
+    op_count = 0
+    for i, v in enumerate(variances):
+        if v < threshold:
+            op_count += 1
+        else:
+            break  # Stop once sensor-level variance begins
+
+    op_cols = [f"op_setting_{i}" for i in range(1, op_count + 1)]
+    sensor_cols = [f"sensor_{i}" for i in range(1, data.shape[1] - op_count + 1)]
+
+    return fixed_cols + op_cols + sensor_cols, op_cols, sensor_cols
 
 
 def run_training_pipeline(dataset_id: str):
@@ -24,14 +51,10 @@ def run_training_pipeline(dataset_id: str):
     # === Step 1: Load Data ===
     def load_dataset(file_path):
         df = pd.read_csv(file_path, sep=r"\s+", header=None)
-        num_cols = df.shape[1]
-        fixed_cols = 2
-        num_op = max(0, num_cols - fixed_cols - 21)
-        op_cols = [f"op_setting_{i}" for i in range(1, num_op + 1)]
-        num_sensors = num_cols - fixed_cols - len(op_cols)
-        sensor_cols = [f"sensor_{i}" for i in range(1, num_sensors + 1)]
-        df.columns = ["unit", "time"] + op_cols + sensor_cols
+        cols, op_cols, sensor_cols = infer_column_schema(df)
+        df.columns = cols
         return df, op_cols, sensor_cols
+
 
     train_fp = Path("data") / f"train_{dataset_id}.txt"
     test_fp = Path("data") / f"test_{dataset_id}.txt"
@@ -136,9 +159,16 @@ def run_training_pipeline(dataset_id: str):
         plt.close()
 
         print(f"📈 SHAP plots saved: {shap_bar.name}, {shap_swarm.name}")
+
     except Exception as e:
         print(f"⚠️ SHAP generation skipped: {e}")
 
+    return {
+        "dataset": dataset_id,
+        "rf_metrics": rf_eval,
+        "xgb_metrics": xgb_eval,
+        "features_used": features
+    }
 
 if __name__ == "__main__":
     for dataset in ["FD001", "FD002", "FD003", "FD004"]:
