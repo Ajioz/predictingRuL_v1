@@ -21,43 +21,39 @@ sns.set(style='whitegrid')
 
 # ====================================
 # 📁 Step 2: Load and Prepare Data
-#   Unified to handle all FD datasets for robust training
 # ==========================================================
-def load_and_prepare_data(file_path, dataset_id):
-    """Loads a single dataset file, assigns column names, and adds a dataset identifier."""
-    df = pd.read_csv(file_path, sep=r"\s+", header=None)
-    
-    # Define schema based on file columns
-    num_total_cols = df.shape[1]
-    num_op_settings = 3
-    num_sensors = num_total_cols - 2 - num_op_settings
-    
-    op_cols = [f"op_setting_{i}" for i in range(1, num_op_settings + 1)]
-    sensor_cols = [f"sensor_{i}" for i in range(1, num_sensors + 1)]
-    cols = ["unit", "time"] + op_cols + sensor_cols
-    
-    df.columns = cols
-    df['dataset'] = dataset_id # Add identifier for the source dataset
-    return df
+# 📁 Step 2: Load and Prepare Data
+#   Improved to handle a dynamic number of operational settings
+# ==========================================================
+data_file = 'train_FD002.txt'
+DATA_TRAIN_PATH = Path("data") / data_file
 
-# Load and combine all training datasets
-all_dfs = []
-data_dir = Path("data")
-for i in range(1, 5):
-    dataset_id = f"FD00{i}"
-    file_path = data_dir / f"train_{dataset_id}.txt"
-    if file_path.exists():
-        print(f"🔄 Loading {file_path}...")
-        df = load_and_prepare_data(file_path, dataset_id)
-        all_dfs.append(df)
+# Load data to inspect the number of columns
+temp_df = pd.read_csv(DATA_TRAIN_PATH, sep=r"\s+", header=None)
+num_total_cols = temp_df.shape[1]
 
-sensor_df = pd.concat(all_dfs, ignore_index=True)
+# Assume the structure: unit, time, [op_settings], [sensors]
+fixed_cols = 2  # "unit" and "time"
 
-# Compute RUL for the combined dataframe
+# Infer number of operational settings columns (anything between "time" and the first "sensor_")
+op_cols = [f"op_setting_{i}" for i in range(1, num_total_cols - fixed_cols - 20)]  # Heuristic: Assume at least 20 sensor columns initially
+
+# Dynamically calculate sensor columns
+sensor_cols = [f"sensor_{i}" for i in range(1, num_total_cols - fixed_cols - len(op_cols) + 1)]
+
+# Create all columns
+cols = ["unit", "time"] + op_cols + sensor_cols
+
+sensor_df = pd.read_csv(DATA_TRAIN_PATH, sep=r"\s+", header=None, names=cols)
+
+print(f"✅ Data loaded from {data_file} with inferred schema:")
+print(f"   - Operational Settings: {len(op_cols)}, Columns: {op_cols}")
+print(f"   - Sensors: {len(sensor_cols)}, Columns: {sensor_cols[:3]}... (truncated)")
+
+# Compute RUL
 rul_per_unit = sensor_df.groupby("unit")["time"].transform("max")
 sensor_df["RUL"] = rul_per_unit - sensor_df["time"]
 
-print("\n✅ All datasets loaded and unified.")
 # 📊 Step 3: Exploratory Data Analysis
 # ====================================
 print("📊 Dataset Shape:", sensor_df.shape)
@@ -128,17 +124,10 @@ filtered_sensor_cols = list(np.array(sensor_cols)[flat_mask])
 rul_corr = sensor_corr_df['RUL'].drop('RUL')
 weak_corr_sensors = rul_corr[rul_corr.abs() < 0.01].index.tolist()
 
-# Final feature set
 final_sensor_cols = [col for col in filtered_sensor_cols if col not in weak_corr_sensors]
-base_feature_cols = op_cols + final_sensor_cols
+final_feature_cols = op_cols + final_sensor_cols
 
-# One-hot encode the 'dataset' categorical feature
-sensor_df = pd.get_dummies(sensor_df, columns=['dataset'], prefix='dset')
-dataset_cols = [col for col in sensor_df.columns if col.startswith('dset_')]
-
-final_feature_cols = base_feature_cols + dataset_cols
 print(f"✅ Final features used for modeling: {len(final_feature_cols)}")
-print(f"   Including one-hot encoded dataset identifiers: {dataset_cols}")
 
 # ====================================
 # 🧠 Step 5: Model Training + Evaluation
@@ -281,10 +270,10 @@ shap.plots.force(sample_sv)
 os.makedirs("models", exist_ok=True)
 
 # Save trained models
-joblib.dump(xgb, "models/turbol_xgb_model.pkl")
-joblib.dump(rf, "models/turbol_rf_model.pkl")
+joblib.dump(xgb, "models/xgb_model.pkl")
+joblib.dump(rf, "models/rf_model.pkl")
 
 # Save feature column list
-joblib.dump(final_feature_cols, "models/turbol_feature_columns.pkl")
+joblib.dump(final_feature_cols, "models/feature_columns.pkl")
 
 print("✅ Models and feature columns saved to 'models/' directory.")
