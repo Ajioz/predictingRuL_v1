@@ -4,6 +4,22 @@ import numpy as np
 from pathlib import Path
 import shap
 import matplotlib.pyplot as plt
+import argparse
+from fastapi import FastAPI, File, UploadFile, Form
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel
+from typing import Optional
+import uvicorn
+import io
+
+app = FastAPI(title="Engine RUL Prediction API", description="Predict remaining useful life (RUL) with SHAP explanations.")
+
+
+class UIInput(BaseModel):
+    engine_type: str
+    condition: Optional[str] = "standard"
+    row_index: Optional[int] = 0
+    data: dict
 
 
 def prepare_input_data(source, engine_type: str, condition: str = "standard", row_index: int = 0) -> dict:
@@ -120,29 +136,60 @@ def detect_input_type(source):
         raise ValueError("Unsupported input source type")
 
 
-if __name__ == "__main__":
-    try:
-        source = "data/test_FD002.txt"  # or dict, CSV, or DataFrame
-        input_type = detect_input_type(source)
+@app.post("/predict", tags=["Single Prediction"])
+async def api_predict(input: UIInput):
+    input_row = prepare_input_data(
+        source=input.data,
+        engine_type=input.engine_type,
+        condition=input.condition,
+        row_index=input.row_index
+    )
+    result = predict_rul(input_row)
+    return result
 
-        if input_type == "form":
-            input_row = prepare_input_data(source, engine_type="FD002")
-        elif input_type == "csv":
-            input_row = prepare_input_data(source, engine_type="FD002", row_index=0)
-        elif input_type == "txt":
-            input_row = prepare_input_data(source, engine_type="FD002", row_index=0)
-        elif input_type == "stream":
-            input_row = prepare_input_data(source, engine_type="FD002", row_index=0)
+
+@app.post("/predict/batch", tags=["Batch File Upload"])
+async def predict_from_file(file: UploadFile = File(...), engine_type: str = Form(...), row_index: int = Form(0)):
+    contents = await file.read()
+    extension = file.filename.split(".")[-1].lower()
+
+    if extension == "csv":
+        df = pd.read_csv(io.StringIO(contents.decode("utf-8")))
+    elif extension == "txt":
+        df = pd.read_csv(io.StringIO(contents.decode("utf-8")), sep=r"\s+", header=None)
+        from training import infer_column_schema
+        col_names, _, _ = infer_column_schema(df)
+        df.columns = col_names
+    else:
+        return JSONResponse(status_code=400, content={"error": "Only CSV or TXT files are supported."})
+
+    input_row = prepare_input_data(df, engine_type=engine_type, row_index=row_index)
+    result = predict_rul(input_row)
+    return result
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--source", type=str, help="Input source (file path)", default="data/test_FD002.txt")
+    parser.add_argument("--engine_type", type=str, help="Engine type (e.g., FD002)", default="FD002")
+    args = parser.parse_args()
+
+    try:
+        input_type = detect_input_type(args.source)
+
+        if input_type in ["csv", "txt"]:
+            input_row = prepare_input_data(args.source, engine_type=args.engine_type)
+        else:
+            raise ValueError("Only file-based sources are supported in CLI mode.")
 
         result = predict_rul(input_row)
-
         pred = result["prediction"]
-        print("\n--- RUL Prediction Summary ---")
+        print("\n--- CLI RUL Prediction ---")
         print(f"  Predicted RUL: {pred['rul_cycles']} cycles")
         print(f"  Status:        {pred['status']}")
         print(f"  Time Left:     ~{pred['rul_days']} days / ~{pred['rul_months']} months / ~{pred['rul_years']} years\n")
 
-        save_shap_force_plot(result["explanation"], save_path="reports/shap_force_plot_detected.png")
+        save_shap_force_plot(result["explanation"], save_path="reports/shap_force_plot_cli.png")
 
     except (FileNotFoundError, ValueError) as e:
         print(f"❌ Error: {e}")
